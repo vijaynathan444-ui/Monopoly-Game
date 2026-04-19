@@ -57,3 +57,7 @@ pw-results.txt
 verify-run.txt
 verify-summary.txt
 tmp-copilot-verify*.mjs
+
+# SQLite runtime database
+data/database.sqlite
+data/*.sqlite
