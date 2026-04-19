@@ -1,0 +1,12 @@
+services:
+  - type: web
+    name: monopoly-game
+    env: node
+    buildCommand: npm install && npm run build && npx prisma migrate deploy
+    startCommand: npm start
+    plan: free
+    envVars:
+      - key: DATABASE_URL
+        value: file:./data/database.sqlite
+      - key: NODE_ENV
+        value: production
