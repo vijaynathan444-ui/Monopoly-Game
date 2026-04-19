@@ -1,3 +1,1 @@
-async handleRollDice(): Promise<{ dice: DiceResult; newPosition: number; passedGo: boolean; tileAction: string; tile: MapTile; actions: GameAction[]; isDoubles?: boolean; }> {
-  // existing function implementation
-}
+function handleRollDice(): {\n    const dice = rollDice();\n    // Logic for handling the dice roll\n    return {\n        value: dice.value,\n        isDoubles: dice.isDouble\n    };\n}
