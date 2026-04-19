@@ -1,0 +1,87 @@
+generator client {
+  provider = "prisma-client"
+  output   = "../src/generated/prisma"
+}
+
+datasource db {
+  provider = "sqlite"
+}
+
+model User {
+  id        String   @id @default(uuid())
+  name      String
+  socketId  String?
+  createdAt DateTime @default(now())
+  hostedRooms Room[] @relation("HostedRooms")
+  players   Player[]
+}
+
+model Room {
+  id        String   @id @default(uuid())
+  roomCode  String   @unique
+  hostId    String
+  host      User     @relation("HostedRooms", fields: [hostId], references: [id])
+  status    String   @default("waiting") // waiting, playing, finished
+  mapName   String   @default("classic")
+  maxPlayers Int     @default(6)
+  createdAt DateTime @default(now())
+  players   Player[]
+  gameState GameState?
+  properties Property[]
+  chatMessages ChatMessage[]
+}
+
+model Player {
+  id         String   @id @default(uuid())
+  roomId     String
+  room       Room     @relation(fields: [roomId], references: [id], onDelete: Cascade)
+  userId     String
+  user       User     @relation(fields: [userId], references: [id])
+  position   Int      @default(0)
+  money      Int      @default(1500)
+  inJail     Boolean  @default(false)
+  jailTurns  Int      @default(0)
+  jailCards  Int      @default(0)
+  bankrupt   Boolean  @default(false)
+  avatar     String   @default("🎩")
+  turnOrder  Int      @default(0)
+  properties Property[]
+  createdAt  DateTime @default(now())
+
+  @@unique([roomId, userId])
+}
+
+model Property {
+  id       String  @id @default(uuid())
+  tileIndex Int
+  name     String
+  price    Int
+  rent     Int
+  ownerId  String?
+  owner    Player? @relation(fields: [ownerId], references: [id], onDelete: SetNull)
+  roomId   String
+  room     Room    @relation(fields: [roomId], references: [id], onDelete: Cascade)
+  level    Int     @default(0) // 0=base, 1-4=houses, 5=hotel
+  mortgaged Boolean @default(false)
+}
+
+model GameState {
+  id          String @id @default(uuid())
+  roomId      String @unique
+  room        Room   @relation(fields: [roomId], references: [id], onDelete: Cascade)
+  currentTurn String // playerId
+  diceValues  String @default("[]") // JSON array
+  doublesCount Int   @default(0)
+  phase       String @default("waiting") // waiting, rolling, moving, action, ended
+  lastUpdate  DateTime @default(now())
+}
+
+model ChatMessage {
+  id        String   @id @default(uuid())
+  roomId    String
+  room      Room     @relation(fields: [roomId], references: [id], onDelete: Cascade)
+  sender    String
+  message   String
+  isSystem  Boolean  @default(false)
+  createdAt DateTime @default(now())
+}
