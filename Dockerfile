@@ -10,20 +10,20 @@ WORKDIR /app
 # Copy package files
 COPY package.json package-lock.json ./
 
-# Copy Prisma schema before install (needed for prisma generate)
+# Copy Prisma schema
 COPY prisma ./prisma
 
 # Install all dependencies
 RUN npm ci
 
-# Generate Prisma client
-RUN npx prisma generate
-
-# Copy rest of app
+# Copy ALL source files BEFORE generating prisma client
 COPY . .
 
-# Build Next.js app
-RUN npm run build
+# Generate Prisma client (outputs to src/generated/prisma)
+RUN npx prisma generate
+
+# Build Next.js app (prisma generate already ran above, next build only)
+RUN npx next build
 
 # Create /data directory for SQLite
 RUN mkdir -p /app/data
