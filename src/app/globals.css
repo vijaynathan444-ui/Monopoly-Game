@@ -344,6 +344,40 @@ input {
   font-size: 0.85rem;
 }
 
+.max-players-selector {
+  display: flex;
+  gap: 0.5rem;
+  flex-wrap: wrap;
+}
+
+.max-player-btn {
+  width: 48px;
+  height: 48px;
+  border-radius: var(--radius-sm);
+  border: 2px solid var(--border);
+  background: var(--bg-secondary);
+  color: var(--text-primary);
+  font-size: 1.1rem;
+  font-weight: 700;
+  cursor: pointer;
+  transition: all 0.2s;
+}
+
+.max-player-btn:hover:not(:disabled) {
+  border-color: var(--accent);
+}
+
+.max-player-btn.selected {
+  border-color: var(--accent);
+  background: rgba(233, 69, 96, 0.2);
+  color: var(--accent);
+}
+
+.max-player-btn:disabled {
+  opacity: 0.4;
+  cursor: not-allowed;
+}
+
 .lobby-actions {
   text-align: center;
   margin-top: 2rem;

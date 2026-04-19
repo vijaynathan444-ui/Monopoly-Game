@@ -17,6 +17,31 @@ export default function HomePage() {
     getSocket();
   }, []);
 
+  const emitWithRetry = (socket: ReturnType<typeof getSocket>, event: string, payload: Record<string, unknown>, onResult: (res: Record<string, unknown>) => void) => {
+    const timeout = setTimeout(() => {
+      setLoading(false);
+      setError('Connection timed out. Please try again.');
+    }, 15000);
+
+    const doEmit = () => {
+      socket.emit(event, payload, (res: Record<string, unknown>) => {
+        clearTimeout(timeout);
+        onResult(res);
+      });
+    };
+
+    if (socket.connected) {
+      doEmit();
+    } else {
+      // Ensure server is initialized before reconnecting
+      fetch('/api/socketio').catch(() => {});
+      if (socket.disconnected) {
+        socket.connect();
+      }
+      socket.once('connect', doEmit);
+    }
+  };
+
   const handleCreate = () => {
     if (!createName.trim()) {
       setError('Please enter your name');
@@ -25,38 +50,19 @@ export default function HomePage() {
     setLoading(true);
     setError('');
     const socket = getSocket();
-    const timeout = setTimeout(() => {
+
+    emitWithRetry(socket, 'create_room', { playerName: createName.trim() }, (res) => {
       setLoading(false);
-      setError('Connection timed out. Please try again.');
-    }, 15000);
-
-    const doEmit = () => {
-      socket.emit('create_room', { playerName: createName.trim() }, (res: {
-        success: boolean;
-        error?: string;
-        roomCode?: string;
-        roomId?: string;
-        userId?: string;
-      }) => {
-        clearTimeout(timeout);
-        setLoading(false);
-        if (res.success) {
-          sessionStorage.setItem('userId', res.userId!);
-          sessionStorage.setItem('roomId', res.roomId!);
-          sessionStorage.setItem('roomCode', res.roomCode!);
-          sessionStorage.setItem('playerName', createName.trim());
-          router.push(`/lobby/${res.roomCode}`);
-        } else {
-          setError(res.error || 'Failed to create room');
-        }
-      });
-    };
-
-    if (socket.connected) {
-      doEmit();
-    } else {
-      socket.once('connect', doEmit);
-    }
+      if (res.success) {
+        sessionStorage.setItem('userId', res.userId as string);
+        sessionStorage.setItem('roomId', res.roomId as string);
+        sessionStorage.setItem('roomCode', res.roomCode as string);
+        sessionStorage.setItem('playerName', createName.trim());
+        router.push(`/lobby/${res.roomCode}`);
+      } else {
+        setError((res.error as string) || 'Failed to create room');
+      }
+    });
   };
 
   const handleJoin = () => {
@@ -71,40 +77,20 @@ export default function HomePage() {
     setLoading(true);
     setError('');
     const socket = getSocket();
-    const timeout = setTimeout(() => {
+    const code = joinCode.trim().toUpperCase();
+
+    emitWithRetry(socket, 'join_room', { playerName: joinName.trim(), roomCode: code }, (res) => {
       setLoading(false);
-      setError('Connection timed out. Please try again.');
-    }, 15000);
-
-    const doJoin = () => {
-      socket.emit('join_room', {
-        playerName: joinName.trim(),
-        roomCode: joinCode.trim().toUpperCase()
-      }, (res: {
-        success: boolean;
-        error?: string;
-        roomId?: string;
-        userId?: string;
-      }) => {
-        clearTimeout(timeout);
-        setLoading(false);
-        if (res.success) {
-          sessionStorage.setItem('userId', res.userId!);
-          sessionStorage.setItem('roomId', res.roomId!);
-          sessionStorage.setItem('roomCode', joinCode.trim().toUpperCase());
-          sessionStorage.setItem('playerName', joinName.trim());
-          router.push(`/lobby/${joinCode.trim().toUpperCase()}`);
-        } else {
-          setError(res.error || 'Failed to join room');
-        }
-      });
-    };
-
-    if (socket.connected) {
-      doJoin();
-    } else {
-      socket.once('connect', doJoin);
-    }
+      if (res.success) {
+        sessionStorage.setItem('userId', res.userId as string);
+        sessionStorage.setItem('roomId', res.roomId as string);
+        sessionStorage.setItem('roomCode', code);
+        sessionStorage.setItem('playerName', joinName.trim());
+        router.push(`/lobby/${code}`);
+      } else {
+        setError((res.error as string) || 'Failed to join room');
+      }
+    });
   };
 
   return (

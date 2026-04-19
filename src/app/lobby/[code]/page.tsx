@@ -64,9 +64,13 @@ export default function LobbyPage() {
     socket.emit('reconnect_player', {
       roomId: storedRoomId,
       userId: storedUserId,
-    }, (res: { success: boolean; state?: GameState }) => {
+    }, (res: { success: boolean; state?: GameState; error?: string }) => {
       if (res.success && res.state) {
         setGameState(res.state);
+      } else {
+        setError(res.error || 'Room not found or session expired');
+        sessionStorage.clear();
+        setTimeout(() => router.push('/'), 2000);
       }
     });
 
@@ -99,6 +103,15 @@ export default function LobbyPage() {
     const roomId = sessionStorage.getItem('roomId');
     socket.emit('select_map', { roomId, mapName: mapFile }, (res: { success: boolean; error?: string }) => {
       if (!res.success) setError(res.error || 'Failed to select map');
+    });
+  }, [isHost]);
+
+  const handleSetMaxPlayers = useCallback((count: number) => {
+    if (!isHost) return;
+    const socket = getSocket();
+    const roomId = sessionStorage.getItem('roomId');
+    socket.emit('set_max_players', { roomId, maxPlayers: count }, (res: { success: boolean; error?: string }) => {
+      if (!res.success) setError(res.error || 'Failed to set max players');
     });
   }, [isHost]);
 
@@ -175,6 +188,23 @@ export default function LobbyPage() {
               >
                 <h4>{map.name}</h4>
                 <p>{map.description}</p>
+              </button>
+            ))}
+          </div>
+        </div>
+
+        <div className="lobby-section">
+          <h3>Max Players {!isHost && '(Host only)'}</h3>
+          <div className="max-players-selector">
+            {[2, 3, 4, 5, 6, 7, 8].map((n) => (
+              <button
+                key={n}
+                className={`max-player-btn ${gameState.room.maxPlayers === n ? 'selected' : ''}`}
+                onClick={() => handleSetMaxPlayers(n)}
+                disabled={!isHost || n < gameState.players.length}
+                title={n < gameState.players.length ? `Cannot set below current ${gameState.players.length} players` : `Set max to ${n} players`}
+              >
+                {n}
               </button>
             ))}
           </div>

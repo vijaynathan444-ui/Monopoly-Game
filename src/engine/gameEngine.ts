@@ -221,7 +221,7 @@ export async function handleRollDice(roomId: string, playerId: string): Promise<
       tileAction = 'none';
   }
 
-  const phase = dice.isDouble ? 'rolling' : 'action';
+  const phase = 'action';
   await prisma.gameState.update({
     where: { roomId },
     data: {
@@ -231,12 +231,17 @@ export async function handleRollDice(roomId: string, playerId: string): Promise<
     },
   });
 
-  return { dice, newPosition, passedGo, tileAction, tile, actions };
+  return { dice, newPosition, passedGo, tileAction, tile, actions, isDoubles: dice.isDouble };
 }
 
 export async function handleBuyProperty(roomId: string, playerId: string, tileIndex: number) {
   const room = await prisma.room.findUnique({ where: { id: roomId } });
   if (!room) throw new Error('Room not found');
+
+  const gameState = await prisma.gameState.findUnique({ where: { roomId } });
+  if (!gameState) throw new Error('Game not started');
+  if (gameState.currentTurn !== playerId) throw new Error('Not your turn');
+  if (gameState.phase !== 'action') throw new Error('Cannot buy now');
 
   const player = await prisma.player.findUnique({ where: { id: playerId } });
   if (!player) throw new Error('Player not found');
@@ -283,6 +288,10 @@ export async function handleBuyProperty(roomId: string, playerId: string, tileIn
 export async function handlePayRent(roomId: string, payerId: string, tileIndex: number, diceTotal: number) {
   const room = await prisma.room.findUnique({ where: { id: roomId } });
   if (!room) throw new Error('Room not found');
+
+  const gameState = await prisma.gameState.findUnique({ where: { roomId } });
+  if (!gameState) throw new Error('Game not started');
+  if (gameState.currentTurn !== payerId) throw new Error('Not your turn');
 
   const property = await prisma.property.findFirst({
     where: { roomId, tileIndex },
@@ -567,6 +576,20 @@ export async function handleEndTurn(roomId: string, playerId: string) {
   if (!gameState) throw new Error('Game not started');
   if (gameState.currentTurn !== playerId) throw new Error('Not your turn');
 
+  // Check for bankruptcy first
+  const activePlayer = await prisma.player.findUnique({ where: { id: playerId } });
+  if (activePlayer && activePlayer.money < 0) {
+    await prisma.player.update({
+      where: { id: playerId },
+      data: { bankrupt: true },
+    });
+    // Release properties
+    await prisma.property.updateMany({
+      where: { ownerId: playerId, roomId },
+      data: { ownerId: null, level: 0, mortgaged: false },
+    });
+  }
+
   const players = await prisma.player.findMany({
     where: { roomId, bankrupt: false },
     orderBy: { turnOrder: 'asc' },
@@ -578,6 +601,15 @@ export async function handleEndTurn(roomId: string, playerId: string) {
       data: { phase: 'ended' },
     });
     return { nextPlayerId: null, gameEnded: true, winner: players[0] };
+  }
+
+  // If player rolled doubles (doublesCount > 0) and is not in jail, let them roll again
+  if (gameState.doublesCount > 0 && activePlayer && !activePlayer.inJail && !activePlayer.bankrupt && activePlayer.money >= 0) {
+    await prisma.gameState.update({
+      where: { roomId },
+      data: { phase: 'rolling' },
+    });
+    return { nextPlayerId: playerId, gameEnded: false, rollingAgain: true };
   }
 
   const currentIndex = players.findIndex((p) => p.id === playerId);
@@ -593,20 +625,6 @@ export async function handleEndTurn(roomId: string, playerId: string) {
       diceValues: '[]',
     },
   });
-
-  // Check for bankruptcy
-  const activePlayer = await prisma.player.findUnique({ where: { id: playerId } });
-  if (activePlayer && activePlayer.money < 0) {
-    await prisma.player.update({
-      where: { id: playerId },
-      data: { bankrupt: true },
-    });
-    // Release properties
-    await prisma.property.updateMany({
-      where: { ownerId: playerId, roomId },
-      data: { ownerId: null, level: 0, mortgaged: false },
-    });
-  }
 
   return { nextPlayerId: nextPlayer.id, gameEnded: false };
 }

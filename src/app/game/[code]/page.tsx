@@ -134,9 +134,19 @@ export default function GamePage() {
     socket.emit('reconnect_player', {
       roomId: storedRoomId,
       userId: storedUserId,
-    }, (res: { success: boolean; state?: FullState }) => {
+    }, (res: { success: boolean; state?: FullState; error?: string }) => {
       if (res.success && res.state) {
         setState(res.state);
+        // Restore game-over state if game already ended
+        if (res.state.gameState?.phase === 'ended') {
+          const activePlayers = res.state.players.filter(p => !p.bankrupt);
+          if (activePlayers.length === 1) {
+            setGameOver(activePlayers[0]);
+          }
+        }
+      } else {
+        sessionStorage.clear();
+        router.push('/');
       }
     });
 

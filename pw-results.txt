@@ -1,0 +1,107 @@
+
+--- VERIFY 1: Home Page Loads ---
+  ✅ Title says MONOPOLY (got "MONOPOLY")
+  ✅ Create Room button visible
+  ✅ Join Room button visible
+
+--- VERIFY 2: Empty Name Validation ---
+  ✅ Create with empty name shows error: "Please enter your name"
+
+--- VERIFY 3: Create Room ---
+  Room code: 2FHZ8K
+  ✅ Navigated to lobby with code "2FHZ8K"
+
+--- VERIFY 4: Lobby Page ---
+  ✅ Room code displayed: "2FHZ8K"
+  ✅ Player count shows: "Players (1/6)"
+  ✅ Host badge visible
+
+--- VERIFY 5: Maps Visible ---
+  ✅ At least 3 maps shown (got 3)
+  ✅ Classic map selected by default
+
+--- VERIFY 6: Max Players Selector ---
+  ✅ 7 max-player buttons shown (2-8), got 7
+  ✅ Default max players is 6 (got "6")
+  ✅ Changed max players to 4 (got "4")
+  ✅ Player count header updated to /4: "Players (1/4)"
+
+--- VERIFY 7: Select Different Map ---
+  ✅ India map now selected
+
+--- VERIFY 8: Start Button Disabled (< 2 players) ---
+  ✅ Start button says "Need at least 2 players"
+  ✅ Start button is disabled
+
+--- VERIFY 9: Player 2 Joins ---
+  Creating P2 page...
+  Navigating P2 to home...
+  Waiting for page ready...
+  Filling join form...
+  Clicking Join Room...
+  Waiting for lobby navigation...
+  ✅ Player 2 navigated to lobby
+  ✅ Player 2 sees 2 players (got 2)
+  ✅ Host sees 2 players (got 2)
+
+--- VERIFY 10: Non-host Cannot Select Map ---
+  ✅ Non-host map buttons are disabled
+
+--- VERIFY 11: Non-host Cannot Change Max Players ---
+  ✅ Non-host max player buttons are disabled
+
+--- VERIFY 12: Non-host Sees "Waiting for host" ---
+  ✅ Non-host sees "Waiting for host" message
+
+--- VERIFY 13: Start Game ---
+  ✅ Start Game button enabled with 2 players
+  ✅ Host navigated to game page
+  ✅ Player 2 navigated to game page
+
+--- VERIFY 14: Game Board Loads ---
+  ✅ Game board loaded for host
+  ✅ Game board loaded for player 2
+  ✅ Board has 40 tiles (expected ~40)
+
+--- VERIFY 15: Players Panel ---
+  ✅ Player panel shows 2 players (got 2)
+
+--- VERIFY 16: Dice & Turn Controls ---
+  ✅ At least one player can roll dice (P1: true, P2: false)
+  ✅ Dice display updated after roll: "46"
+
+--- VERIFY 17: Post-Roll Actions ---
+  ✅ Post-roll action available (Buy: false, End: true, Rent: false)
+  ✅ P1 ended turn
+
+--- VERIFY 18: Turn Passes to Other Player ---
+  ✅ A player can now roll (P1: false, P2: true)
+
+--- VERIFY 19: Chat System ---
+  ✅ Chat message received by other player
+
+--- VERIFY 20: Play Multiple Turns ---
+  Turn 1: completed
+  Turn 2: completed
+  Turn 3: completed
+  Turn 4: completed
+  ✅ Played 4 turns with 0 errors
+
+--- VERIFY 21: Page Refresh Recovery ---
+  ✅ Host recovered after page refresh
+  ✅ Board tiles still present after refresh (40)
+
+--- VERIFY 22: Negative - Join with Invalid Code ---
+  ✅ Invalid code error: "Room not found"
+
+--- VERIFY 23: Negative - Empty Join Fields ---
+  ✅ Empty join name error: "Please enter your name"
+  ✅ Empty code error: "Please enter room code"
+
+========================================
+  BROWSER VERIFICATION RESULTS
+========================================
+  âœ… Passed: 42
+  âŒ Failed: 0
+========================================
+

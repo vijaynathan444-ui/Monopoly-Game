@@ -44,3 +44,12 @@ next-env.d.ts
 
 # database
 *.db
+
+# playwright
+/playwright-report/
+/test-results/
+/playwright/.cache/
+playwright-verify.mjs
+test-4players.mjs
+test-maxplayers.mjs
+test-results.txt

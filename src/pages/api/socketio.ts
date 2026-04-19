@@ -1,7 +1,6 @@
 import { Server as SocketIOServer } from 'socket.io';
+import { createServer } from 'http';
 import type { NextApiRequest, NextApiResponse } from 'next';
-import type { Server as HTTPServer } from 'http';
-import type { Socket as NetSocket } from 'net';
 
 import prisma from '@/lib/prisma';
 import { generateRoomCode, AVATARS } from '@/lib/utils';
@@ -19,36 +18,41 @@ import {
   loadMap,
 } from '@/engine/gameEngine';
 
-interface SocketServer extends HTTPServer {
-  io?: SocketIOServer;
-}
+const SOCKET_PORT = 3001;
 
-interface SocketWithServer extends NetSocket {
-  server: SocketServer;
-}
-
-interface NextApiResponseWithSocket extends NextApiResponse {
-  socket: SocketWithServer;
-}
-
-export const config = {
-  api: {
-    bodyParser: false,
-  },
+// Persist across HMR using globalThis (same pattern as Prisma)
+const g = globalThis as unknown as {
+  __socketIO?: SocketIOServer;
+  __socketHttpServer?: ReturnType<typeof createServer>;
 };
 
-export default function handler(req: NextApiRequest, res: NextApiResponseWithSocket) {
-  if (res.socket.server.io) {
-    res.status(200).json({ message: 'Socket.IO already running' });
-    return;
+export default function handler(req: NextApiRequest, res: NextApiResponse) {
+  if (g.__socketIO) {
+    try {
+      const engine = (g.__socketIO as any).engine;
+      if (engine && typeof engine.clientsCount === 'number') {
+        res.status(200).json({ message: 'Socket.IO already running', port: SOCKET_PORT });
+        return;
+      }
+    } catch {}
+    // Engine is dead/stale, clean up and reinitialize
+    try { g.__socketIO.close(); } catch {}
+    g.__socketIO = undefined;
+    // Also close the HTTP server so we can re-listen
+    try { g.__socketHttpServer?.close(); } catch {}
+    g.__socketHttpServer = undefined;
   }
 
-  console.log('Initializing Socket.IO...');
-  const io = new SocketIOServer(res.socket.server, {
-    path: '/api/socketio',
-    addTrailingSlash: false,
+  console.log('Initializing Socket.IO on standalone port', SOCKET_PORT, '...');
+  const httpServer = createServer();
+  const io = new SocketIOServer(httpServer, {
+    cors: {
+      origin: '*',
+      methods: ['GET', 'POST'],
+    },
   });
-  res.socket.server.io = io;
+  g.__socketIO = io;
+  g.__socketHttpServer = httpServer;
 
   io.on('connection', (socket) => {
     console.log('Client connected:', socket.id);
@@ -56,13 +60,16 @@ export default function handler(req: NextApiRequest, res: NextApiResponseWithSoc
     socket.on('create_room', async (data: { playerName: string }, callback) => {
       console.log('[create_room] received from', socket.id, 'data:', data);
       try {
+        const playerName = (data.playerName || '').trim();
+        if (!playerName) { callback({ success: false, error: 'Name is required' }); return; }
+
         let roomCode = generateRoomCode();
         while (await prisma.room.findUnique({ where: { roomCode } })) {
           roomCode = generateRoomCode();
         }
 
         const user = await prisma.user.create({
-          data: { name: data.playerName, socketId: socket.id },
+          data: { name: playerName, socketId: socket.id },
         });
 
         const room = await prisma.room.create({
@@ -93,6 +100,10 @@ export default function handler(req: NextApiRequest, res: NextApiResponseWithSoc
 
     socket.on('join_room', async (data: { playerName: string; roomCode: string }, callback) => {
       try {
+        const playerName = (data.playerName || '').trim();
+        if (!playerName) { callback({ success: false, error: 'Name is required' }); return; }
+        if (!data.roomCode || !data.roomCode.trim()) { callback({ success: false, error: 'Room code is required' }); return; }
+
         const room = await prisma.room.findUnique({
           where: { roomCode: data.roomCode.toUpperCase() },
           include: { players: true },
@@ -103,7 +114,7 @@ export default function handler(req: NextApiRequest, res: NextApiResponseWithSoc
         if (room.players.length >= room.maxPlayers) { callback({ success: false, error: 'Room is full' }); return; }
 
         const user = await prisma.user.create({
-          data: { name: data.playerName, socketId: socket.id },
+          data: { name: playerName, socketId: socket.id },
         });
 
         await prisma.player.create({
@@ -136,6 +147,29 @@ export default function handler(req: NextApiRequest, res: NextApiResponseWithSoc
         }
         loadMap(data.mapName); // validate
         await prisma.room.update({ where: { id: data.roomId }, data: { mapName: data.mapName } });
+        const state = await getFullGameState(data.roomId);
+        io.to(data.roomId).emit('game_state_update', state);
+        callback({ success: true });
+      } catch (err) {
+        callback({ success: false, error: err instanceof Error ? err.message : 'Unknown error' });
+      }
+    });
+
+    socket.on('set_max_players', async (data: { roomId: string; maxPlayers: number }, callback) => {
+      try {
+        const sd = socket.data;
+        const room = await prisma.room.findUnique({ where: { id: data.roomId }, include: { players: true } });
+        if (!room || room.hostId !== sd.userId) {
+          callback({ success: false, error: 'Only host can change settings' }); return;
+        }
+        const max = Math.floor(data.maxPlayers);
+        if (max < 2 || max > 8) {
+          callback({ success: false, error: 'Players must be between 2 and 8' }); return;
+        }
+        if (max < room.players.length) {
+          callback({ success: false, error: `Cannot set below current player count (${room.players.length})` }); return;
+        }
+        await prisma.room.update({ where: { id: data.roomId }, data: { maxPlayers: max } });
         const state = await getFullGameState(data.roomId);
         io.to(data.roomId).emit('game_state_update', state);
         callback({ success: true });
@@ -224,7 +258,7 @@ export default function handler(req: NextApiRequest, res: NextApiResponseWithSoc
       }
     });
 
-    socket.on('pay_rent', async (data: { roomId: string; tileIndex: number; diceTotal: number }, callback) => {
+    socket.on('pay_rent', async (data: { roomId: string; tileIndex: number; diceTotal?: number }, callback) => {
       try {
         const sd = socket.data;
         const player = await prisma.player.findFirst({
@@ -232,7 +266,17 @@ export default function handler(req: NextApiRequest, res: NextApiResponseWithSoc
         });
         if (!player) { callback({ success: false, error: 'Player not found' }); return; }
 
-        const result = await handlePayRent(data.roomId, player.id, data.tileIndex, data.diceTotal);
+        // Compute diceTotal server-side from stored game state
+        const gameState = await prisma.gameState.findUnique({ where: { roomId: data.roomId } });
+        let diceTotal = 0;
+        if (gameState?.diceValues) {
+          try {
+            const dv = JSON.parse(gameState.diceValues);
+            if (Array.isArray(dv)) diceTotal = dv.reduce((a: number, b: number) => a + b, 0);
+          } catch { /* use 0 */ }
+        }
+
+        const result = await handlePayRent(data.roomId, player.id, data.tileIndex, diceTotal);
         const state = await getFullGameState(data.roomId);
         if (result.rent > 0) {
           io.to(data.roomId).emit('rent_paid', { payerId: player.id, ...result });
@@ -361,6 +405,23 @@ export default function handler(req: NextApiRequest, res: NextApiResponseWithSoc
         });
         if (!targetPlayer) { callback({ success: false, error: 'Player not found' }); return; }
 
+        // If kicked player has the active turn, advance to next player
+        const gameState = await prisma.gameState.findUnique({ where: { roomId: data.roomId } });
+        if (gameState && gameState.currentTurn === targetPlayer.id) {
+          const activePlayers = await prisma.player.findMany({
+            where: { roomId: data.roomId, bankrupt: false, id: { not: targetPlayer.id } },
+            orderBy: { turnOrder: 'asc' },
+          });
+          if (activePlayers.length > 0) {
+            const kickedOrder = targetPlayer.turnOrder;
+            const nextPlayer = activePlayers.find(p => p.turnOrder > kickedOrder) || activePlayers[0];
+            await prisma.gameState.update({
+              where: { roomId: data.roomId },
+              data: { currentTurn: nextPlayer.id, phase: 'rolling', doublesCount: 0, diceValues: '[]' },
+            });
+          }
+        }
+
         await prisma.property.updateMany({
           where: { ownerId: targetPlayer.id, roomId: data.roomId },
           data: { ownerId: null, level: 0, mortgaged: false },
@@ -436,5 +497,9 @@ export default function handler(req: NextApiRequest, res: NextApiResponseWithSoc
     });
   });
 
-  res.status(200).json({ message: 'Socket.IO initialized' });
+  httpServer.listen(SOCKET_PORT, '0.0.0.0', () => {
+    console.log(`Socket.IO server listening on port ${SOCKET_PORT}`);
+  });
+
+  res.status(200).json({ message: 'Socket.IO initialized', port: SOCKET_PORT });
 }
