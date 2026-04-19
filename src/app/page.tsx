@@ -1,25 +1,30 @@
 'use client';
 
-import { useState, useEffect } from 'react';
+import { useEffect, useState } from 'react';
 import { useRouter } from 'next/navigation';
 import { getSocket } from '@/lib/socketClient';
 
 export default function HomePage() {
   const router = useRouter();
-  const [createName, setCreateName] = useState('');
-  const [joinName, setJoinName] = useState('');
+  const [nickname, setNickname] = useState('');
   const [joinCode, setJoinCode] = useState('');
   const [error, setError] = useState('');
-  const [loading, setLoading] = useState(false);
+  const [loadingAction, setLoadingAction] = useState<'play' | 'private' | 'join' | ''>('');
 
-  // Initialize socket connection on page load so it's ready when user clicks
   useEffect(() => {
     getSocket();
+    const saved = sessionStorage.getItem('playerName');
+    if (saved) setNickname(saved);
   }, []);
 
-  const emitWithRetry = (socket: ReturnType<typeof getSocket>, event: string, payload: Record<string, unknown>, onResult: (res: Record<string, unknown>) => void) => {
+  const emitWithRetry = (
+    socket: ReturnType<typeof getSocket>,
+    event: string,
+    payload: Record<string, unknown>,
+    onResult: (res: Record<string, unknown>) => void,
+  ) => {
     const timeout = setTimeout(() => {
-      setLoading(false);
+      setLoadingAction('');
       setError('Connection timed out. Please try again.');
     }, 15000);
 
@@ -33,59 +38,69 @@ export default function HomePage() {
     if (socket.connected) {
       doEmit();
     } else {
-      // Ensure server is initialized before reconnecting
       fetch('/api/socketio').catch(() => {});
-      if (socket.disconnected) {
-        socket.connect();
-      }
+      if (socket.disconnected) socket.connect();
       socket.once('connect', doEmit);
     }
   };
 
-  const handleCreate = () => {
-    if (!createName.trim()) {
-      setError('Please enter your name');
-      return;
+  const ensureNickname = () => {
+    if (!nickname.trim()) {
+      setError('Please enter your nickname');
+      return false;
     }
-    setLoading(true);
     setError('');
+    sessionStorage.setItem('playerName', nickname.trim());
+    return true;
+  };
+
+  const handleBrowseRooms = () => {
+    if (!ensureNickname()) return;
+    setLoadingAction('play');
+    router.push('/rooms');
+  };
+
+  const handleCreatePrivate = () => {
+    if (!ensureNickname()) return;
+    setLoadingAction('private');
     const socket = getSocket();
 
-    emitWithRetry(socket, 'create_room', { playerName: createName.trim() }, (res) => {
-      setLoading(false);
+    emitWithRetry(socket, 'create_room', {
+      playerName: nickname.trim(),
+      isPrivate: true,
+    }, (res) => {
+      setLoadingAction('');
       if (res.success) {
         sessionStorage.setItem('userId', res.userId as string);
         sessionStorage.setItem('roomId', res.roomId as string);
         sessionStorage.setItem('roomCode', res.roomCode as string);
-        sessionStorage.setItem('playerName', createName.trim());
         router.push(`/lobby/${res.roomCode}`);
       } else {
-        setError((res.error as string) || 'Failed to create room');
+        setError((res.error as string) || 'Failed to create private room');
       }
     });
   };
 
-  const handleJoin = () => {
-    if (!joinName.trim()) {
-      setError('Please enter your name');
-      return;
-    }
+  const handleJoinByCode = () => {
+    if (!ensureNickname()) return;
     if (!joinCode.trim()) {
       setError('Please enter room code');
       return;
     }
-    setLoading(true);
-    setError('');
-    const socket = getSocket();
-    const code = joinCode.trim().toUpperCase();
 
-    emitWithRetry(socket, 'join_room', { playerName: joinName.trim(), roomCode: code }, (res) => {
-      setLoading(false);
+    setLoadingAction('join');
+    const code = joinCode.trim().toUpperCase();
+    const socket = getSocket();
+
+    emitWithRetry(socket, 'join_room', {
+      playerName: nickname.trim(),
+      roomCode: code,
+    }, (res) => {
+      setLoadingAction('');
       if (res.success) {
         sessionStorage.setItem('userId', res.userId as string);
         sessionStorage.setItem('roomId', res.roomId as string);
         sessionStorage.setItem('roomCode', code);
-        sessionStorage.setItem('playerName', joinName.trim());
         router.push(`/lobby/${code}`);
       } else {
         setError((res.error as string) || 'Failed to join room');
@@ -94,56 +109,67 @@ export default function HomePage() {
   };
 
   return (
-    <div className="home-container">
-      <h1 className="home-title">MONOPOLY</h1>
-      <p className="home-subtitle">Create or join a room to play with friends</p>
+    <div className="home-container modern-home">
+      <div className="home-bg-icons" aria-hidden="true">
+        <span className="bg-icon" style={{ top: '9%', left: '7%', animationDelay: '0s' }}>🎲</span>
+        <span className="bg-icon" style={{ top: '18%', right: '8%', animationDelay: '1s' }}>🏦</span>
+        <span className="bg-icon" style={{ bottom: '14%', left: '12%', animationDelay: '2s' }}>💎</span>
+        <span className="bg-icon" style={{ top: '60%', right: '10%', animationDelay: '1.5s' }}>🚂</span>
+        <span className="bg-icon" style={{ bottom: '9%', right: '18%', animationDelay: '2.5s' }}>💡</span>
+      </div>
 
-      {error && <p className="error-text">{error}</p>}
+      <div className="home-shell">
+        <div className="home-hero">
+          <div className="home-dice-icon">🎲</div>
+          <h1 className="home-title">MONOPOLY</h1>
+          <p className="home-subtitle">Create public rooms, private rooms, and jump into live matches with a cleaner multiplayer flow.</p>
+        </div>
 
-      <div className="home-cards">
-        <div className="home-card">
-          <h2>Create Room</h2>
-          <p>Start a new game and invite your friends</p>
-          <div className="input-group">
-            <input
-              className="input-field"
-              type="text"
-              placeholder="Your name"
-              value={createName}
-              onChange={(e) => setCreateName(e.target.value)}
-              maxLength={20}
-              onKeyDown={(e) => e.key === 'Enter' && handleCreate()}
-            />
-          </div>
-          <button className="btn-primary" onClick={handleCreate} disabled={loading}>
-            {loading ? 'Creating...' : 'Create Room'}
+        {error && <p className="error-text home-error">{error}</p>}
+
+        <div className="home-play-section">
+          <input
+            className="input-field home-nickname-input"
+            type="text"
+            placeholder="Your nickname..."
+            value={nickname}
+            onChange={(e) => {
+              setNickname(e.target.value);
+              setError('');
+            }}
+            maxLength={20}
+            onKeyDown={(e) => e.key === 'Enter' && handleBrowseRooms()}
+          />
+
+          <button className="home-play-btn btn-primary" onClick={handleBrowseRooms} disabled={loadingAction !== ''}>
+            {loadingAction === 'play' ? 'Opening...' : 'Play'}
           </button>
         </div>
 
-        <div className="home-card">
-          <h2>Join Room</h2>
-          <p>Enter a room code to join a friend&#39;s game</p>
-          <div className="input-group">
-            <input
-              className="input-field"
-              type="text"
-              placeholder="Your name"
-              value={joinName}
-              onChange={(e) => setJoinName(e.target.value)}
-              maxLength={20}
-            />
-            <input
-              className="input-field"
-              type="text"
-              placeholder="Room Code"
-              value={joinCode}
-              onChange={(e) => setJoinCode(e.target.value.toUpperCase())}
-              maxLength={6}
-              onKeyDown={(e) => e.key === 'Enter' && handleJoin()}
-            />
-          </div>
-          <button className="btn-primary" onClick={handleJoin} disabled={loading}>
-            {loading ? 'Joining...' : 'Join Room'}
+        <div className="home-action-btns">
+          <button className="home-action-btn" onClick={handleBrowseRooms} disabled={loadingAction !== ''}>
+            👥 Browse existing rooms
+          </button>
+          <button className="home-action-btn accent" onClick={handleCreatePrivate} disabled={loadingAction !== ''}>
+            {loadingAction === 'private' ? 'Creating...' : '🔐 Create private room'}
+          </button>
+        </div>
+
+        <div className="home-join-bar">
+          <input
+            className="input-field"
+            type="text"
+            placeholder="Enter room code"
+            value={joinCode}
+            onChange={(e) => {
+              setJoinCode(e.target.value.toUpperCase());
+              setError('');
+            }}
+            maxLength={6}
+            onKeyDown={(e) => e.key === 'Enter' && handleJoinByCode()}
+          />
+          <button className="btn-secondary home-join-btn" onClick={handleJoinByCode} disabled={loadingAction !== ''}>
+            {loadingAction === 'join' ? 'Joining...' : 'Join by code'}
           </button>
         </div>
       </div>

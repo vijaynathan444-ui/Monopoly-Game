@@ -1,0 +1,33 @@
+<svg width="1280" height="720" viewBox="0 0 1280 720" fill="none" xmlns="http://www.w3.org/2000/svg">
+  <defs>
+    <linearGradient id="bg4" x1="0" y1="0" x2="1280" y2="720" gradientUnits="userSpaceOnUse">
+      <stop stop-color="#0D0A1B"/>
+      <stop offset="1" stop-color="#120F24"/>
+    </linearGradient>
+  </defs>
+  <rect width="1280" height="720" fill="url(#bg4)"/>
+  <rect x="250" y="90" width="780" height="540" rx="22" fill="#17122D" stroke="#A97BFF" stroke-opacity="0.22"/>
+  <text x="290" y="145" fill="white" font-size="34" font-family="Segoe UI" font-weight="800">Create Trade</text>
+  <text x="290" y="180" fill="#A8B2D1" font-size="20" font-family="Segoe UI">Build an offer with cash and properties</text>
+  <circle cx="970" cy="130" r="18" fill="#FFFFFF" fill-opacity="0.08"/>
+  <text x="970" y="137" text-anchor="middle" fill="white" font-size="18" font-family="Segoe UI" font-weight="700">×</text>
+  <rect x="290" y="220" width="220" height="48" rx="12" fill="#16213E"/>
+  <rect x="290" y="300" width="280" height="62" rx="16" fill="#231A3D"/>
+  <rect x="710" y="300" width="280" height="62" rx="16" fill="#231A3D"/>
+  <circle cx="640" cy="331" r="22" fill="#5B3D95"/>
+  <text x="640" y="339" text-anchor="middle" fill="white" font-size="18" font-family="Segoe UI">⇄</text>
+  <rect x="300" y="390" width="300" height="165" rx="18" fill="#21183A"/>
+  <rect x="680" y="390" width="300" height="165" rx="18" fill="#21183A"/>
+  <text x="320" y="425" fill="white" font-size="22" font-family="Segoe UI" font-weight="700">You offer</text>
+  <text x="700" y="425" fill="white" font-size="22" font-family="Segoe UI" font-weight="700">You request</text>
+  <rect x="320" y="452" width="250" height="40" rx="10" fill="#16213E"/>
+  <rect x="700" y="452" width="250" height="40" rx="10" fill="#16213E"/>
+  <rect x="320" y="507" width="250" height="8" rx="4" fill="#D9D9D9"/>
+  <circle cx="425" cy="511" r="10" fill="#8B5CF6"/>
+  <rect x="700" y="507" width="250" height="8" rx="4" fill="#D9D9D9"/>
+  <circle cx="735" cy="511" r="10" fill="#8B5CF6"/>
+  <rect x="320" y="610" width="290" height="42" rx="12" fill="#251B3F" stroke="#E94560"/>
+  <rect x="630" y="610" width="320" height="42" rx="12" fill="#E94560"/>
+  <text x="465" y="637" text-anchor="middle" fill="#F6C1D0" font-size="18" font-family="Segoe UI" font-weight="700">Cancel</text>
+  <text x="790" y="637" text-anchor="middle" fill="white" font-size="18" font-family="Segoe UI" font-weight="700">Send trade</text>
+</svg>

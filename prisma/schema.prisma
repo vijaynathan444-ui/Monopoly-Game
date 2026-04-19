@@ -24,6 +24,15 @@ model Room {
   status    String   @default("waiting") // waiting, playing, finished
   mapName   String   @default("classic")
   maxPlayers Int     @default(6)
+  isPrivate  Boolean @default(false)
+  startingCash Int   @default(1500)
+  doubleRentFullSet Boolean @default(true)
+  auctionEnabled    Boolean @default(false)
+  mortgageEnabled   Boolean @default(true)
+  evenBuildRule     Boolean @default(true)
+  noRentInJail      Boolean @default(false)
+  vacationCashEnabled Boolean @default(false)
+  randomizeOrder    Boolean @default(true)
   createdAt DateTime @default(now())
   players   Player[]
   gameState GameState?
@@ -72,6 +81,7 @@ model GameState {
   currentTurn String // playerId
   diceValues  String @default("[]") // JSON array
   doublesCount Int   @default(0)
+  freeParkingPot Int @default(0)
   phase       String @default("waiting") // waiting, rolling, moving, action, ended
   lastUpdate  DateTime @default(now())
 }

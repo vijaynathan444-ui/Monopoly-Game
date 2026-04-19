@@ -53,3 +53,7 @@ playwright-verify.mjs
 test-4players.mjs
 test-maxplayers.mjs
 test-results.txt
+pw-results.txt
+verify-run.txt
+verify-summary.txt
+tmp-copilot-verify*.mjs

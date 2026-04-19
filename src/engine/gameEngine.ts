@@ -199,8 +199,30 @@ export async function handleRollDice(roomId: string, playerId: string): Promise<
         where: { id: playerId },
         data: { money: { decrement: amount } },
       });
+      if (room.vacationCashEnabled) {
+        await prisma.gameState.update({
+          where: { roomId },
+          data: { freeParkingPot: { increment: amount } },
+        });
+      }
       tileAction = 'pay_tax';
-      actions.push({ type: 'tax_paid', playerId, data: { amount } });
+      actions.push({ type: 'tax_paid', playerId, data: { amount, addedToPot: room.vacationCashEnabled } });
+      break;
+    }
+    case 'FREE_PARKING': {
+      tileAction = 'free_parking';
+      if (room.vacationCashEnabled && gameState.freeParkingPot > 0) {
+        await prisma.player.update({
+          where: { id: playerId },
+          data: { money: { increment: gameState.freeParkingPot } },
+        });
+        await prisma.gameState.update({
+          where: { roomId },
+          data: { freeParkingPot: 0 },
+        });
+        tileAction = 'collect_vacation_cash';
+        actions.push({ type: 'vacation_cash_collected', playerId, data: { amount: gameState.freeParkingPot } });
+      }
       break;
     }
     case 'PROPERTY':
@@ -300,6 +322,9 @@ export async function handlePayRent(roomId: string, payerId: string, tileIndex: 
   if (property.ownerId === payerId) return { rent: 0 };
   if (property.mortgaged) return { rent: 0 };
 
+  const ownerPlayer = await prisma.player.findUnique({ where: { id: property.ownerId } });
+  if (room.noRentInJail && ownerPlayer?.inJail) return { rent: 0, ownerId: property.ownerId };
+
   const map = loadMap(room.mapName);
   const tile = map.tiles[tileIndex];
 
@@ -352,7 +377,7 @@ export async function handlePayRent(roomId: string, payerId: string, tileIndex: 
     property.level,
     tile.type,
     ownedInGroup,
-    totalInGroup,
+    room.doubleRentFullSet ? totalInGroup : undefined,
     diceTotal
   );
 
@@ -406,6 +431,12 @@ export async function handleDrawCard(roomId: string, playerId: string, cardType:
         where: { id: playerId },
         data: { money: { decrement: card.value || 0 } },
       });
+      if (room.vacationCashEnabled && (card.value || 0) > 0) {
+        await prisma.gameState.update({
+          where: { roomId },
+          data: { freeParkingPot: { increment: card.value || 0 } },
+        });
+      }
       break;
     case 'move_to': {
       const targetPos = card.value || 0;
@@ -478,6 +509,14 @@ export async function handlePayJailFine(roomId: string, playerId: string) {
     data: { inJail: false, jailTurns: 0, money: { decrement: 50 } },
   });
 
+  const room = await prisma.room.findUnique({ where: { id: roomId } });
+  if (room?.vacationCashEnabled) {
+    await prisma.gameState.update({
+      where: { roomId },
+      data: { freeParkingPot: { increment: 50 } },
+    });
+  }
+
   return { paid: 50 };
 }
 
@@ -512,11 +551,18 @@ export async function handleUpgradeProperty(roomId: string, playerId: string, ti
     const groupTiles = map.tiles
       .map((t, i) => ({ ...t, index: i }))
       .filter((t) => t.group === tile.group);
-    const ownedInGroup = await prisma.property.count({
+    const groupProperties = await prisma.property.findMany({
       where: { roomId, tileIndex: { in: groupTiles.map((t) => t.index) }, ownerId: playerId },
     });
-    if (ownedInGroup < groupTiles.length) {
+    if (groupProperties.length < groupTiles.length) {
       throw new Error('Must own all properties in group to upgrade');
+    }
+
+    if (room.evenBuildRule) {
+      const minLevel = Math.min(...groupProperties.map((p) => p.level));
+      if (property.level > minLevel) {
+        throw new Error('Build evenly across the full property set');
+      }
     }
   }
 
@@ -537,7 +583,89 @@ export async function handleUpgradeProperty(roomId: string, playerId: string, ti
   return { newLevel: property.level + 1, cost: upgradeCost };
 }
 
+export async function handleDowngradeProperty(roomId: string, playerId: string, tileIndex: number) {
+  const room = await prisma.room.findUnique({ where: { id: roomId } });
+  if (!room) throw new Error('Room not found');
+
+  const property = await prisma.property.findFirst({
+    where: { roomId, tileIndex, ownerId: playerId },
+  });
+  if (!property) throw new Error('You do not own this property');
+  if (property.level <= 0) throw new Error('No upgrades to sell');
+
+  const map = loadMap(room.mapName);
+  const tile = map.tiles[tileIndex];
+
+  if (tile.group && room.evenBuildRule) {
+    const groupTiles = map.tiles
+      .map((t, i) => ({ ...t, index: i }))
+      .filter((t) => t.group === tile.group);
+    const groupProperties = await prisma.property.findMany({
+      where: { roomId, tileIndex: { in: groupTiles.map((t) => t.index) }, ownerId: playerId },
+    });
+    const maxLevel = Math.max(...groupProperties.map((p) => p.level));
+    if (property.level < maxLevel) {
+      throw new Error('Sell evenly across the full property set');
+    }
+  }
+
+  const refund = Math.floor((tile.price || property.price) / 4);
+  await prisma.property.update({
+    where: { id: property.id },
+    data: { level: property.level - 1 },
+  });
+  await prisma.player.update({
+    where: { id: playerId },
+    data: { money: { increment: refund } },
+  });
+
+  return { newLevel: property.level - 1, refund };
+}
+
+export async function handleFileBankruptcy(roomId: string, playerId: string) {
+  const player = await prisma.player.findUnique({ where: { id: playerId } });
+  if (!player) throw new Error('Player not found');
+
+  await prisma.player.update({
+    where: { id: playerId },
+    data: { bankrupt: true, money: 0 },
+  });
+
+  await prisma.property.updateMany({
+    where: { ownerId: playerId, roomId },
+    data: { ownerId: null, level: 0, mortgaged: false },
+  });
+
+  const activePlayers = await prisma.player.findMany({
+    where: { roomId, bankrupt: false },
+    orderBy: { turnOrder: 'asc' },
+  });
+
+  if (activePlayers.length <= 1) {
+    await prisma.gameState.update({
+      where: { roomId },
+      data: { phase: 'ended', currentTurn: activePlayers[0]?.id || playerId },
+    });
+    return { gameEnded: true, winner: activePlayers[0] || null };
+  }
+
+  const gameState = await prisma.gameState.findUnique({ where: { roomId } });
+  if (gameState?.currentTurn === playerId) {
+    const nextPlayer = activePlayers[0];
+    await prisma.gameState.update({
+      where: { roomId },
+      data: { currentTurn: nextPlayer.id, phase: 'rolling', doublesCount: 0, diceValues: '[]' },
+    });
+  }
+
+  return { gameEnded: false };
+}
+
 export async function handleMortgage(roomId: string, playerId: string, tileIndex: number) {
+  const room = await prisma.room.findUnique({ where: { id: roomId } });
+  if (!room) throw new Error('Room not found');
+  if (!room.mortgageEnabled) throw new Error('Mortgages are disabled for this room');
+
   const property = await prisma.property.findFirst({
     where: { roomId, tileIndex, ownerId: playerId },
   });
@@ -656,6 +784,15 @@ export async function getFullGameState(roomId: string) {
       status: room.status,
       mapName: room.mapName,
       maxPlayers: room.maxPlayers,
+      isPrivate: room.isPrivate,
+      startingCash: room.startingCash,
+      doubleRentFullSet: room.doubleRentFullSet,
+      auctionEnabled: room.auctionEnabled,
+      mortgageEnabled: room.mortgageEnabled,
+      evenBuildRule: room.evenBuildRule,
+      noRentInJail: room.noRentInJail,
+      vacationCashEnabled: room.vacationCashEnabled,
+      randomizeOrder: room.randomizeOrder,
     },
     players: room.players.map((p) => ({
       id: p.id,
@@ -676,6 +813,7 @@ export async function getFullGameState(roomId: string) {
           diceValues: JSON.parse(room.gameState.diceValues),
           phase: room.gameState.phase,
           doublesCount: room.gameState.doublesCount,
+          freeParkingPot: room.gameState.freeParkingPot,
         }
       : null,
     properties: room.properties.map((p) => ({

@@ -1,0 +1,37 @@
+<svg width="1280" height="720" viewBox="0 0 1280 720" fill="none" xmlns="http://www.w3.org/2000/svg">
+  <defs>
+    <linearGradient id="bg2" x1="0" y1="0" x2="1280" y2="720" gradientUnits="userSpaceOnUse">
+      <stop stop-color="#100A1D"/>
+      <stop offset="1" stop-color="#17122D"/>
+    </linearGradient>
+  </defs>
+  <rect width="1280" height="720" fill="url(#bg2)"/>
+  <rect x="50" y="50" width="1180" height="620" rx="26" fill="#131A2E" fill-opacity="0.82" stroke="#FFFFFF" stroke-opacity="0.06"/>
+  <text x="90" y="105" fill="white" font-size="34" font-family="Segoe UI" font-weight="800">Lobby</text>
+  <text x="90" y="136" fill="#A8B2D1" font-size="18" font-family="Segoe UI">Room code • players • maps • game settings</text>
+  <rect x="90" y="165" width="240" height="72" rx="18" fill="#24183F" stroke="#E94560"/>
+  <text x="210" y="195" text-anchor="middle" fill="#A8B2D1" font-size="14" font-family="Segoe UI">ROOM CODE</text>
+  <text x="210" y="220" text-anchor="middle" fill="white" font-size="28" font-family="Segoe UI" font-weight="800">NT4LF7</text>
+  <rect x="90" y="270" width="340" height="330" rx="20" fill="#161F36"/>
+  <text x="115" y="308" fill="white" font-size="22" font-family="Segoe UI" font-weight="700">Players</text>
+  <rect x="115" y="330" width="290" height="58" rx="14" fill="#231A3D" stroke="#E94560"/>
+  <text x="140" y="364" fill="white" font-size="18" font-family="Segoe UI">vijay 👑</text>
+  <rect x="115" y="402" width="290" height="58" rx="14" fill="#231A3D"/>
+  <text x="140" y="436" fill="white" font-size="18" font-family="Segoe UI">wg</text>
+  <rect x="470" y="165" width="710" height="240" rx="20" fill="#161F36"/>
+  <text x="495" y="203" fill="white" font-size="22" font-family="Segoe UI" font-weight="700">Maps</text>
+  <rect x="495" y="225" width="205" height="145" rx="18" fill="#231A3D" stroke="#E94560"/>
+  <rect x="722" y="225" width="205" height="145" rx="18" fill="#231A3D"/>
+  <rect x="949" y="225" width="205" height="145" rx="18" fill="#231A3D"/>
+  <text x="597" y="306" text-anchor="middle" fill="white" font-size="22" font-family="Segoe UI">Classic</text>
+  <text x="824" y="306" text-anchor="middle" fill="white" font-size="22" font-family="Segoe UI">India</text>
+  <text x="1051" y="306" text-anchor="middle" fill="white" font-size="22" font-family="Segoe UI">World</text>
+  <rect x="470" y="430" width="710" height="170" rx="20" fill="#161F36"/>
+  <text x="495" y="468" fill="white" font-size="22" font-family="Segoe UI" font-weight="700">Game settings</text>
+  <rect x="495" y="490" width="160" height="42" rx="999" fill="#E94560" fill-opacity="0.18" stroke="#E94560"/>
+  <rect x="670" y="490" width="160" height="42" rx="999" fill="#251B3F"/>
+  <rect x="845" y="490" width="160" height="42" rx="999" fill="#251B3F"/>
+  <rect x="1020" y="490" width="130" height="42" rx="999" fill="#251B3F"/>
+  <rect x="930" y="615" width="250" height="40" rx="12" fill="#E94560"/>
+  <text x="1055" y="641" text-anchor="middle" fill="white" font-size="18" font-family="Segoe UI" font-weight="700">Start Game</text>
+</svg>

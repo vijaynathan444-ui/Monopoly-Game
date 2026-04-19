@@ -1,0 +1,28 @@
+<svg width="1280" height="720" viewBox="0 0 1280 720" fill="none" xmlns="http://www.w3.org/2000/svg">
+  <defs>
+    <linearGradient id="bg5" x1="0" y1="0" x2="1280" y2="720" gradientUnits="userSpaceOnUse">
+      <stop stop-color="#0F0B1D"/>
+      <stop offset="1" stop-color="#140F26"/>
+    </linearGradient>
+  </defs>
+  <rect width="1280" height="720" fill="url(#bg5)"/>
+  <rect x="305" y="138" width="670" height="444" rx="22" fill="#17122D" stroke="#FFFFFF" stroke-opacity="0.08"/>
+  <text x="350" y="205" fill="white" font-size="40" font-family="Segoe UI" font-weight="800">Ventnor Avenue</text>
+  <text x="350" y="242" fill="#A8B2D1" font-size="20" font-family="Segoe UI">PROPERTY • yellow • $260</text>
+  <circle cx="920" cy="182" r="18" fill="#FFFFFF" fill-opacity="0.08"/>
+  <text x="920" y="189" text-anchor="middle" fill="white" font-size="18" font-family="Segoe UI" font-weight="700">×</text>
+  <rect x="350" y="280" width="195" height="42" rx="999" fill="#24183F" stroke="#FFD54F"/>
+  <text x="447" y="307" text-anchor="middle" fill="white" font-size="18" font-family="Segoe UI">🙂 vijay</text>
+  <rect x="350" y="360" width="580" height="120" rx="18" fill="#120F24"/>
+  <text x="420" y="395" fill="#A8B2D1" font-size="22" font-family="Segoe UI">Owner</text>
+  <text x="790" y="395" fill="white" font-size="22" font-family="Segoe UI" font-weight="700">Unowned</text>
+  <text x="420" y="430" fill="#A8B2D1" font-size="22" font-family="Segoe UI">Base rent</text>
+  <text x="790" y="430" fill="white" font-size="22" font-family="Segoe UI" font-weight="700">$22</text>
+  <text x="420" y="465" fill="#A8B2D1" font-size="22" font-family="Segoe UI">Level</text>
+  <text x="790" y="465" fill="white" font-size="22" font-family="Segoe UI" font-weight="700">No houses</text>
+  <circle cx="575" cy="518" r="8" fill="#31476A"/>
+  <circle cx="600" cy="518" r="8" fill="#31476A"/>
+  <circle cx="625" cy="518" r="8" fill="#31476A"/>
+  <circle cx="650" cy="518" r="8" fill="#31476A"/>
+  <circle cx="675" cy="518" r="10" fill="#E94560"/>
+</svg>

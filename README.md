@@ -6,28 +6,22 @@ A real-time multiplayer Monopoly-style web application built with **Next.js**, *
 
 ---
 
-## 📸 Screenshots
+## 📸 Latest UI Gallery
 
-### Home Page — Create or Join a Room
-![Home Page](screenshots/home.png)
+### Modern Home — Play, Browse Rooms, or Create Private Room
+![Modern Home](screenshots/home-modern.svg)
 
-### Lobby — Waiting for Players & Map Selection
-![Lobby](screenshots/lobby.png)
+### Modern Lobby — Room Sharing, Map Selection, and Game Rules
+![Modern Lobby](screenshots/lobby-modern.svg)
 
-### Game Board — Classic Map
-![Game Board](screenshots/game-board.png)
+### Glass Game Board — Board-Center Controls and Player Panels
+![Modern Game Board](screenshots/game-board-modern.svg)
 
-### Dice Roll & Actions Panel
-![Dice Roll](screenshots/dice-actions.png)
+### Trade Composer — Cash and Property Exchange UI
+![Trade Modal](screenshots/trade-modal-modern.svg)
 
-### Property Details & Upgrade
-![Property Modal](screenshots/property-modal.png)
-
-### Chance / Community Chest Card
-![Card Draw](screenshots/card-draw.png)
-
-### In-Game Chat
-![Chat](screenshots/chat.png)
+### Property Popover — Upgrade, Downgrade, Mortgage, and Tile Details
+![Property Popover](screenshots/property-popover-modern.svg)
 
 ---
 
@@ -35,21 +29,21 @@ A real-time multiplayer Monopoly-style web application built with **Next.js**, *
 
 | Feature | Description |
 |---------|-------------|
-| **Multiplayer Rooms** | Create/join rooms with unique 6-character codes |
-| **Host Controls** | Start game, kick players, select map |
-| **Dynamic Board** | Board rendered from JSON map files — fully extensible |
-| **3 Maps** | Classic, India, and World maps included |
-| **Dice System** | Cryptographic random dice, doubles = extra turn, 3 doubles = jail |
-| **Property System** | Buy, upgrade (houses/hotel), mortgage, pay rent |
-| **Rent Calculation** | Monopoly rent doubling, railroad/utility scaling |
-| **Jail System** | Roll doubles, pay fine, or use Get Out of Jail Free card |
-| **Card System** | Chance & Community Chest with shuffled decks |
-| **In-Game Chat** | Real-time chat between players |
-| **Reconnection** | Rejoin game if disconnected |
-| **Responsive UI** | Desktop, tablet, and mobile layouts |
-| **Animations** | Dice roll, token bounce, card flip, turn glow |
-| **Bankruptcy** | Auto-bankrupt when money < 0, properties released |
-| **Game Over** | Last player standing wins |
+| **Public + Private Rooms** | Start a quick public game, browse existing rooms, or create a private invite-only room |
+| **Modern Lobby Controls** | Share room links, view players, preview maps, and configure game settings before start |
+| **3 Playable Maps** | Classic, India, and World boards are included out of the box |
+| **Board-Center Gameplay** | Roll dice, buy, pay rent, and end turns from the center of the board for better usability |
+| **Property Popover UI** | Click any tile to view owner, rent, level, status, and quick property actions |
+| **Upgrade + Downgrade** | Houses and hotels can be upgraded or downgraded directly from the game screen |
+| **Mortgage System** | Mortgage and unmortgage owned properties without leaving the board |
+| **Trading System** | Create trade offers with cash and property combinations using the modern trade composer |
+| **Vacation Cash Rule** | Optional free-parking jackpot style setting supported in the room rules |
+| **Turn + Jail Rules** | Doubles, jail fine, jail card usage, and turn rotation are all handled live |
+| **Live Player Location** | Improved tokens and locate controls make it easier to see where each player is on the map |
+| **Real-Time Chat** | Players can chat during the match in a built-in panel |
+| **Reconnect Support** | Players can recover and rejoin ongoing matches after refresh or disconnect |
+| **Responsive Design** | Optimized layout for desktop and smaller screens with glassy modern styling |
+| **Bankruptcy + Winner Flow** | Bankruptcy filing and end-game winner states are included |
 
 ---
 
@@ -76,10 +70,12 @@ monopoly-game/
 │   └── migrations/            # SQLite migrations
 ├── src/
 │   ├── app/
-│   │   ├── page.tsx           # Home — Create/Join room
-│   │   ├── lobby/[code]/      # Lobby — Player list, map select
-│   │   ├── game/[code]/       # Game — Board, dice, controls, chat
-│   │   ├── api/maps/          # REST API for available maps
+│   │   ├── page.tsx           # Home — play, browse rooms, private room
+│   │   ├── rooms/             # Public room browser
+│   │   ├── lobby/[code]/      # Lobby — players, maps, settings
+│   │   ├── game/[code]/       # Game — board, trade, popovers, chat
+│   │   ├── api/maps/          # REST API for map metadata
+│   │   ├── api/rooms/         # REST API for waiting public rooms
 │   │   └── globals.css        # All styles
 │   ├── engine/
 │   │   ├── gameEngine.ts      # Core game logic (roll, buy, rent, jail, cards)
@@ -112,51 +108,45 @@ monopoly-game/
 ### Installation
 
 ```bash
-# Clone the repo
 git clone https://github.com/vijaynathan444-ui/Monopoly-Game.git
 cd Monopoly-Game
-
-# Install dependencies
 npm install
-
-# Create environment file
-echo 'DATABASE_URL="file:./dev.db"' > .env
-
-# Generate Prisma client
 npx prisma generate
-
-# Run database migrations
 npx prisma migrate deploy
-
-# Start development server
 npm run dev
 ```
 
-Open [http://localhost:3000](http://localhost:3000) in your browser.
+### Development Notes
+
+- App runs on **http://localhost:3000**
+- The realtime Socket.IO server auto-initializes on **port 3001** during development
+- If you change the Prisma schema, regenerate the client and restart the dev server
 
 ---
 
 ## 🎮 How to Play
 
-1. **Create a Room** — Enter your name and click "Create Room"
-2. **Share the Code** — Give the 6-character room code to friends
-3. **Friends Join** — They enter the code on the home page
-4. **Host Starts** — Host selects a map and clicks "Start Game"
-5. **Roll & Play** — Roll dice, buy properties, pay rent, draw cards
-6. **Win** — Last player not bankrupt wins!
+1. **Enter your nickname** on the home screen
+2. **Choose a flow** — quick play, browse rooms, private room, or join by code
+3. **Set up the lobby** — map, max players, starting cash, mortgages, vacation cash, and other rules
+4. **Start the match** when enough players have joined
+5. **Use the board-center controls** to roll, buy, pay rent, or end your turn
+6. **Click properties on the board** to inspect details and manage upgrades, downgrades, or mortgages
+7. **Open the trade panel** to exchange cash and properties with other players
+8. **Win the game** by outlasting all other players
 
-### Controls
+### Core Controls
 
-| Action | When |
-|--------|------|
-| 🎲 Roll Dice | Your turn, rolling phase |
-| 🏠 Buy Property | Landed on unowned property |
-| 💸 Pay Rent | Landed on opponent's property |
-| ⏩ End Turn | After your actions are done |
-| 💰 Pay $50 Fine | In jail |
-| 🃏 Use Jail Card | In jail with a card |
-
-Click any tile on the board to view property details, upgrade, or mortgage.
+| Action | Use |
+|--------|-----|
+| Roll Dice | Start your move on your turn |
+| Buy | Purchase the current unowned tile |
+| Pay Rent | Settle rent after landing on owned property |
+| End Turn | Pass control to the next player |
+| Upgrade / Downgrade | Manage houses and hotels from the property popover |
+| Mortgage | Raise cash on owned properties |
+| Trade | Offer cash and tiles to another player |
+| Locate Player | Jump to a player’s current position from the players panel |
 
 ---
 
@@ -197,12 +187,19 @@ The board must have exactly **40 tiles** (10 per side) for correct rendering.
 |-------|-----------|-------------|
 | `create_room` | Client → Server | Create a new room |
 | `join_room` | Client → Server | Join with room code |
+| `reconnect_player` | Client → Server | Restore state after refresh |
 | `start_game` | Client → Server | Host starts the game |
 | `roll_dice` | Client → Server | Roll dice on your turn |
 | `buy_property` | Client → Server | Buy current property |
 | `pay_rent` | Client → Server | Pay rent to owner |
+| `upgrade_property` | Client → Server | Add a house or hotel |
+| `downgrade_property` | Client → Server | Sell back a house or hotel |
+| `mortgage_property` | Client → Server | Mortgage or unmortgage a property |
+| `create_trade_offer` | Client → Server | Send a trade request to another player |
+| `respond_trade_offer` | Client → Server | Accept or decline a trade |
+| `file_bankruptcy` | Client → Server | Voluntarily declare bankruptcy |
 | `end_turn` | Client → Server | Pass turn to next player |
-| `draw_card` | Client → Server | Draw chance/chest card |
+| `draw_card` | Client → Server | Draw chance or chest card |
 | `kick_player` | Client → Server | Host kicks a player |
 | `chat_message` | Bidirectional | In-game chat |
 | `game_state_update` | Server → Client | Full state sync |

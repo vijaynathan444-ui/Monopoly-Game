@@ -1,0 +1,30 @@
+<svg width="1280" height="720" viewBox="0 0 1280 720" fill="none" xmlns="http://www.w3.org/2000/svg">
+  <defs>
+    <linearGradient id="bg" x1="0" y1="0" x2="1280" y2="720" gradientUnits="userSpaceOnUse">
+      <stop stop-color="#120D22"/>
+      <stop offset="0.5" stop-color="#17122D"/>
+      <stop offset="1" stop-color="#0F0B1D"/>
+    </linearGradient>
+    <linearGradient id="accent" x1="250" y1="170" x2="1030" y2="560" gradientUnits="userSpaceOnUse">
+      <stop stop-color="#7C4DFF"/>
+      <stop offset="1" stop-color="#E94560"/>
+    </linearGradient>
+  </defs>
+  <rect width="1280" height="720" rx="24" fill="url(#bg)"/>
+  <circle cx="220" cy="130" r="180" fill="#7C4DFF" fill-opacity="0.14"/>
+  <circle cx="1080" cy="620" r="220" fill="#E94560" fill-opacity="0.12"/>
+  <rect x="200" y="92" width="880" height="536" rx="28" fill="#12182A" fill-opacity="0.76" stroke="#FFFFFF" stroke-opacity="0.08"/>
+  <text x="640" y="175" text-anchor="middle" fill="white" font-size="54" font-family="Segoe UI" font-weight="800">MONOPOLY</text>
+  <text x="640" y="210" text-anchor="middle" fill="#A8B2D1" font-size="20" font-family="Segoe UI">Modern multiplayer room browser and private lobbies</text>
+  <rect x="330" y="260" width="620" height="52" rx="14" fill="#16213E" stroke="#2C3C5D"/>
+  <text x="360" y="293" fill="#6C7A99" font-size="18" font-family="Segoe UI">Your nickname...</text>
+  <rect x="330" y="334" width="300" height="58" rx="16" fill="#E94560"/>
+  <text x="480" y="370" text-anchor="middle" fill="white" font-size="22" font-family="Segoe UI" font-weight="700">Play</text>
+  <rect x="650" y="334" width="300" height="58" rx="16" fill="#251B3F" stroke="#E94560" stroke-width="2"/>
+  <text x="800" y="370" text-anchor="middle" fill="#F6C1D0" font-size="22" font-family="Segoe UI" font-weight="700">Browse existing rooms</text>
+  <rect x="330" y="426" width="300" height="58" rx="16" fill="#251B3F" stroke="#E94560" stroke-width="2"/>
+  <text x="480" y="462" text-anchor="middle" fill="#F6C1D0" font-size="22" font-family="Segoe UI" font-weight="700">Create private room</text>
+  <rect x="650" y="426" width="300" height="58" rx="16" fill="#16213E" stroke="#2C3C5D"/>
+  <text x="800" y="462" text-anchor="middle" fill="#A8B2D1" font-size="20" font-family="Segoe UI">Join by code</text>
+  <text x="640" y="560" text-anchor="middle" fill="#A8B2D1" font-size="18" font-family="Segoe UI">Latest UI preview</text>
+</svg>

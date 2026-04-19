@@ -1,0 +1,31 @@
+<svg width="1280" height="720" viewBox="0 0 1280 720" fill="none" xmlns="http://www.w3.org/2000/svg">
+  <defs>
+    <linearGradient id="bg3" x1="0" y1="0" x2="1280" y2="720" gradientUnits="userSpaceOnUse">
+      <stop stop-color="#110D20"/>
+      <stop offset="1" stop-color="#100A1D"/>
+    </linearGradient>
+  </defs>
+  <rect width="1280" height="720" fill="url(#bg3)"/>
+  <rect x="20" y="75" width="220" height="570" rx="18" fill="#161F36" fill-opacity="0.86" stroke="#FFFFFF" stroke-opacity="0.06"/>
+  <rect x="1040" y="75" width="220" height="570" rx="18" fill="#161F36" fill-opacity="0.86" stroke="#FFFFFF" stroke-opacity="0.06"/>
+  <rect x="260" y="40" width="760" height="640" rx="20" fill="#11182A" stroke="#FFFFFF" stroke-opacity="0.08"/>
+  <rect x="350" y="130" width="580" height="460" rx="14" fill="#090914" stroke="#31476A"/>
+  <rect x="360" y="140" width="60" height="60" fill="#10203D" stroke="#53D8FB"/>
+  <rect x="860" y="140" width="60" height="60" fill="#10203D" stroke="#53D8FB"/>
+  <rect x="360" y="530" width="60" height="60" fill="#10203D" stroke="#53D8FB"/>
+  <rect x="860" y="530" width="60" height="60" fill="#10203D" stroke="#53D8FB"/>
+  <rect x="430" y="245" width="420" height="220" rx="18" fill="#140F26" stroke="#FFFFFF" stroke-opacity="0.08"/>
+  <rect x="550" y="295" width="46" height="46" rx="10" fill="#F5F5F5"/>
+  <rect x="610" y="295" width="46" height="46" rx="10" fill="#F5F5F5"/>
+  <text x="640" y="375" text-anchor="middle" fill="#D4DDF7" font-size="20" font-family="Segoe UI" font-weight="700">Board-center controls</text>
+  <text x="640" y="402" text-anchor="middle" fill="#8DA0C8" font-size="16" font-family="Segoe UI">roll • buy • end turn • property popover</text>
+  <rect x="104" y="112" width="60" height="60" rx="12" fill="#231A3D"/>
+  <rect x="58" y="190" width="144" height="300" rx="14" fill="#12182A"/>
+  <rect x="1080" y="120" width="140" height="64" rx="14" fill="#231A3D" stroke="#E94560"/>
+  <rect x="1080" y="210" width="140" height="64" rx="14" fill="#231A3D"/>
+  <rect x="1080" y="320" width="140" height="44" rx="12" fill="#E94560"/>
+  <rect x="1080" y="395" width="140" height="150" rx="14" fill="#231A3D"/>
+  <circle cx="470" cy="555" r="10" fill="#FFD54F" stroke="white" stroke-width="2"/>
+  <circle cx="482" cy="543" r="10" fill="#E94560" stroke="white" stroke-width="2"/>
+  <circle cx="890" cy="565" r="10" fill="#53D8FB" stroke="white" stroke-width="2"/>
+</svg>

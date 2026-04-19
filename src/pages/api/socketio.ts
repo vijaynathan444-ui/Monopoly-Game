@@ -13,12 +13,31 @@ import {
   handleUseJailCard,
   handleEndTurn,
   handleUpgradeProperty,
+  handleDowngradeProperty,
   handleMortgage,
+  handleFileBankruptcy,
   getFullGameState,
   loadMap,
 } from '@/engine/gameEngine';
 
 const SOCKET_PORT = 3001;
+
+type TradeOffer = {
+  id: string;
+  roomId: string;
+  fromUserId: string;
+  toUserId: string;
+  fromPlayerId: string;
+  toPlayerId: string;
+  fromName: string;
+  toName: string;
+  offeredCash: number;
+  requestedCash: number;
+  offeredTileIndexes: number[];
+  requestedTileIndexes: number[];
+};
+
+const pendingTrades = new Map<string, TradeOffer>();
 
 // Persist across HMR using globalThis (same pattern as Prisma)
 const g = globalThis as unknown as {
@@ -57,7 +76,18 @@ export default function handler(req: NextApiRequest, res: NextApiResponse) {
   io.on('connection', (socket) => {
     console.log('Client connected:', socket.id);
 
-    socket.on('create_room', async (data: { playerName: string }, callback) => {
+    socket.on('create_room', async (data: {
+      playerName: string;
+      isPrivate?: boolean;
+      mapName?: string;
+      maxPlayers?: number;
+      startingCash?: number;
+      doubleRentFullSet?: boolean;
+      mortgageEnabled?: boolean;
+      noRentInJail?: boolean;
+      randomizeOrder?: boolean;
+      vacationCashEnabled?: boolean;
+    }, callback) => {
       console.log('[create_room] received from', socket.id, 'data:', data);
       try {
         const playerName = (data.playerName || '').trim();
@@ -68,12 +98,32 @@ export default function handler(req: NextApiRequest, res: NextApiResponse) {
           roomCode = generateRoomCode();
         }
 
+        const maxPlayers = Math.max(2, Math.min(8, Math.floor(Number(data.maxPlayers ?? 6))));
+        const startingCash = [1000, 1500, 2000, 2500, 3000].includes(Number(data.startingCash))
+          ? Number(data.startingCash)
+          : 1500;
+        const mapName = typeof data.mapName === 'string' ? data.mapName : 'classic';
+        loadMap(mapName);
+
         const user = await prisma.user.create({
           data: { name: playerName, socketId: socket.id },
         });
 
         const room = await prisma.room.create({
-          data: { roomCode, hostId: user.id, status: 'waiting', mapName: 'classic' },
+          data: {
+            roomCode,
+            hostId: user.id,
+            status: 'waiting',
+            mapName,
+            maxPlayers,
+            isPrivate: Boolean(data.isPrivate),
+            startingCash,
+            doubleRentFullSet: data.doubleRentFullSet !== false,
+            mortgageEnabled: data.mortgageEnabled !== false,
+            noRentInJail: Boolean(data.noRentInJail),
+            vacationCashEnabled: Boolean(data.vacationCashEnabled),
+            randomizeOrder: data.randomizeOrder !== false,
+          },
         });
 
         await prisma.player.create({
@@ -82,6 +132,7 @@ export default function handler(req: NextApiRequest, res: NextApiResponse) {
             userId: user.id,
             avatar: AVATARS[0],
             turnOrder: 0,
+            money: startingCash,
           },
         });
 
@@ -117,12 +168,15 @@ export default function handler(req: NextApiRequest, res: NextApiResponse) {
           data: { name: playerName, socketId: socket.id },
         });
 
+        const roomStartingCash = Number((room as { startingCash?: number }).startingCash ?? 1500);
+
         await prisma.player.create({
           data: {
             roomId: room.id,
             userId: user.id,
             avatar: AVATARS[room.players.length % AVATARS.length],
             turnOrder: room.players.length,
+            money: roomStartingCash,
           },
         });
 
@@ -145,6 +199,9 @@ export default function handler(req: NextApiRequest, res: NextApiResponse) {
         if (!room || room.hostId !== sd.userId) {
           callback({ success: false, error: 'Only host can select map' }); return;
         }
+        if (room.status !== 'waiting') {
+          callback({ success: false, error: 'Map can only be changed before the game starts' }); return;
+        }
         loadMap(data.mapName); // validate
         await prisma.room.update({ where: { id: data.roomId }, data: { mapName: data.mapName } });
         const state = await getFullGameState(data.roomId);
@@ -162,6 +219,9 @@ export default function handler(req: NextApiRequest, res: NextApiResponse) {
         if (!room || room.hostId !== sd.userId) {
           callback({ success: false, error: 'Only host can change settings' }); return;
         }
+        if (room.status !== 'waiting') {
+          callback({ success: false, error: 'Player count can only be changed before the game starts' }); return;
+        }
         const max = Math.floor(data.maxPlayers);
         if (max < 2 || max > 8) {
           callback({ success: false, error: 'Players must be between 2 and 8' }); return;
@@ -170,6 +230,51 @@ export default function handler(req: NextApiRequest, res: NextApiResponse) {
           callback({ success: false, error: `Cannot set below current player count (${room.players.length})` }); return;
         }
         await prisma.room.update({ where: { id: data.roomId }, data: { maxPlayers: max } });
+        const state = await getFullGameState(data.roomId);
+        io.to(data.roomId).emit('game_state_update', state);
+        callback({ success: true });
+      } catch (err) {
+        callback({ success: false, error: err instanceof Error ? err.message : 'Unknown error' });
+      }
+    });
+
+    socket.on('update_room_settings', async (data: {
+      roomId: string;
+      isPrivate?: boolean;
+      startingCash?: number;
+      doubleRentFullSet?: boolean;
+      mortgageEnabled?: boolean;
+      noRentInJail?: boolean;
+      vacationCashEnabled?: boolean;
+      randomizeOrder?: boolean;
+      evenBuildRule?: boolean;
+      auctionEnabled?: boolean;
+    }, callback) => {
+      try {
+        const sd = socket.data;
+        const room = await prisma.room.findUnique({ where: { id: data.roomId } });
+        if (!room || room.hostId !== sd.userId) {
+          callback({ success: false, error: 'Only host can change settings' }); return;
+        }
+        if (room.status !== 'waiting') {
+          callback({ success: false, error: 'Room settings can only be changed before the game starts' }); return;
+        }
+
+        const updateData: Record<string, unknown> = {};
+        if (typeof data.isPrivate === 'boolean') updateData.isPrivate = data.isPrivate;
+        if (typeof data.doubleRentFullSet === 'boolean') updateData.doubleRentFullSet = data.doubleRentFullSet;
+        if (typeof data.mortgageEnabled === 'boolean') updateData.mortgageEnabled = data.mortgageEnabled;
+        if (typeof data.noRentInJail === 'boolean') updateData.noRentInJail = data.noRentInJail;
+        if (typeof data.vacationCashEnabled === 'boolean') updateData.vacationCashEnabled = data.vacationCashEnabled;
+        if (typeof data.randomizeOrder === 'boolean') updateData.randomizeOrder = data.randomizeOrder;
+        if (typeof data.evenBuildRule === 'boolean') updateData.evenBuildRule = data.evenBuildRule;
+        if (typeof data.auctionEnabled === 'boolean') updateData.auctionEnabled = data.auctionEnabled;
+        if (typeof data.startingCash === 'number' && [1000, 1500, 2000, 2500, 3000].includes(data.startingCash)) {
+          updateData.startingCash = data.startingCash;
+          await prisma.player.updateMany({ where: { roomId: data.roomId }, data: { money: data.startingCash } });
+        }
+
+        await prisma.room.update({ where: { id: data.roomId }, data: updateData });
         const state = await getFullGameState(data.roomId);
         io.to(data.roomId).emit('game_state_update', state);
         callback({ success: true });
@@ -199,9 +304,24 @@ export default function handler(req: NextApiRequest, res: NextApiResponse) {
           }
         }
 
-        const firstPlayer = room.players.sort((a, b) => a.turnOrder - b.turnOrder)[0];
+        const roomStartingCash = Number((room as { startingCash?: number }).startingCash ?? 1500);
+        const shouldRandomizeOrder = Boolean((room as { randomizeOrder?: boolean }).randomizeOrder);
+
+        await prisma.player.updateMany({ where: { roomId: room.id }, data: { money: roomStartingCash } });
+
+        let orderedPlayers = [...room.players].sort((a, b) => a.turnOrder - b.turnOrder);
+        if (shouldRandomizeOrder) {
+          orderedPlayers = [...orderedPlayers].sort(() => Math.random() - 0.5);
+          await Promise.all(
+            orderedPlayers.map((player, index) =>
+              prisma.player.update({ where: { id: player.id }, data: { turnOrder: index } })
+            )
+          );
+        }
+
+        const firstPlayer = orderedPlayers[0];
         await prisma.gameState.create({
-          data: { roomId: room.id, currentTurn: firstPlayer.id, phase: 'rolling' },
+          data: { roomId: room.id, currentTurn: firstPlayer.id, phase: 'rolling', freeParkingPot: 0 },
         });
         await prisma.room.update({ where: { id: data.roomId }, data: { status: 'playing' } });
 
@@ -363,6 +483,188 @@ export default function handler(req: NextApiRequest, res: NextApiResponse) {
         if (!player) { callback({ success: false, error: 'Player not found' }); return; }
         const result = await handleMortgage(data.roomId, player.id, data.tileIndex);
         const state = await getFullGameState(data.roomId);
+        io.to(data.roomId).emit('game_state_update', state);
+        callback({ success: true, ...result });
+      } catch (err) {
+        callback({ success: false, error: err instanceof Error ? err.message : 'Unknown error' });
+      }
+    });
+
+    socket.on('downgrade_property', async (data: { roomId: string; tileIndex: number }, callback) => {
+      try {
+        const sd = socket.data;
+        const player = await prisma.player.findFirst({
+          where: { roomId: data.roomId, userId: sd.userId as string },
+        });
+        if (!player) { callback({ success: false, error: 'Player not found' }); return; }
+        const result = await handleDowngradeProperty(data.roomId, player.id, data.tileIndex);
+        const state = await getFullGameState(data.roomId);
+        io.to(data.roomId).emit('game_state_update', state);
+        callback({ success: true, ...result });
+      } catch (err) {
+        callback({ success: false, error: err instanceof Error ? err.message : 'Unknown error' });
+      }
+    });
+
+    socket.on('create_trade_offer', async (data: {
+      roomId: string;
+      targetUserId: string;
+      offeredCash?: number;
+      requestedCash?: number;
+      offeredTileIndexes?: number[];
+      requestedTileIndexes?: number[];
+    }, callback) => {
+      try {
+        const sd = socket.data;
+        const fromPlayer = await prisma.player.findFirst({
+          where: { roomId: data.roomId, userId: sd.userId as string },
+          include: { user: true },
+        });
+        const toPlayer = await prisma.player.findFirst({
+          where: { roomId: data.roomId, userId: data.targetUserId },
+          include: { user: true },
+        });
+        if (!fromPlayer || !toPlayer) { callback({ success: false, error: 'Players not found' }); return; }
+        if (fromPlayer.userId === toPlayer.userId) { callback({ success: false, error: 'Choose another player' }); return; }
+
+        const offeredCash = Math.max(0, Math.floor(Number(data.offeredCash ?? 0)));
+        const requestedCash = Math.max(0, Math.floor(Number(data.requestedCash ?? 0)));
+        const offeredTileIndexes = Array.isArray(data.offeredTileIndexes) ? data.offeredTileIndexes : [];
+        const requestedTileIndexes = Array.isArray(data.requestedTileIndexes) ? data.requestedTileIndexes : [];
+
+        if (fromPlayer.money < offeredCash) { callback({ success: false, error: 'Not enough cash to offer' }); return; }
+
+        const offeredProps = await prisma.property.findMany({
+          where: { roomId: data.roomId, tileIndex: { in: offeredTileIndexes }, ownerId: fromPlayer.id },
+        });
+        const requestedProps = await prisma.property.findMany({
+          where: { roomId: data.roomId, tileIndex: { in: requestedTileIndexes }, ownerId: toPlayer.id },
+        });
+        if (offeredProps.length !== offeredTileIndexes.length || requestedProps.length !== requestedTileIndexes.length) {
+          callback({ success: false, error: 'Trade includes invalid properties' }); return;
+        }
+
+        const offer: TradeOffer = {
+          id: `${Date.now()}-${Math.random().toString(36).slice(2, 8)}`,
+          roomId: data.roomId,
+          fromUserId: fromPlayer.userId,
+          toUserId: toPlayer.userId,
+          fromPlayerId: fromPlayer.id,
+          toPlayerId: toPlayer.id,
+          fromName: fromPlayer.user.name,
+          toName: toPlayer.user.name,
+          offeredCash,
+          requestedCash,
+          offeredTileIndexes,
+          requestedTileIndexes,
+        };
+
+        pendingTrades.set(offer.id, offer);
+        io.to(data.roomId).emit('chat_message', {
+          sender: 'System',
+          message: `${offer.fromName} sent a trade offer to ${offer.toName}`,
+          timestamp: new Date().toISOString(),
+          isSystem: true,
+        });
+
+        const targetUser = await prisma.user.findUnique({ where: { id: data.targetUserId } });
+        if (targetUser?.socketId) {
+          io.to(targetUser.socketId).emit('trade_offer_received', offer);
+        }
+
+        callback({ success: true, offer });
+      } catch (err) {
+        callback({ success: false, error: err instanceof Error ? err.message : 'Unknown error' });
+      }
+    });
+
+    socket.on('respond_trade_offer', async (data: { offerId: string; accept: boolean }, callback) => {
+      try {
+        const offer = pendingTrades.get(data.offerId);
+        if (!offer) { callback({ success: false, error: 'Trade offer expired' }); return; }
+        if (socket.data.userId !== offer.toUserId) { callback({ success: false, error: 'Only the target player can respond' }); return; }
+
+        if (!data.accept) {
+          pendingTrades.delete(offer.id);
+          io.to(offer.roomId).emit('chat_message', {
+            sender: 'System',
+            message: `${offer.toName} declined the trade offer from ${offer.fromName}`,
+            timestamp: new Date().toISOString(),
+            isSystem: true,
+          });
+          io.to(offer.roomId).emit('trade_declined', offer);
+          callback({ success: true });
+          return;
+        }
+
+        const fromPlayer = await prisma.player.findUnique({ where: { id: offer.fromPlayerId } });
+        const toPlayer = await prisma.player.findUnique({ where: { id: offer.toPlayerId } });
+        if (!fromPlayer || !toPlayer) { callback({ success: false, error: 'Players unavailable' }); return; }
+        if (fromPlayer.money < offer.offeredCash || toPlayer.money < offer.requestedCash) {
+          callback({ success: false, error: 'One player no longer has enough cash' }); return;
+        }
+
+        const offeredProps = await prisma.property.findMany({
+          where: { roomId: offer.roomId, tileIndex: { in: offer.offeredTileIndexes }, ownerId: offer.fromPlayerId },
+        });
+        const requestedProps = await prisma.property.findMany({
+          where: { roomId: offer.roomId, tileIndex: { in: offer.requestedTileIndexes }, ownerId: offer.toPlayerId },
+        });
+        if (offeredProps.length !== offer.offeredTileIndexes.length || requestedProps.length !== offer.requestedTileIndexes.length) {
+          callback({ success: false, error: 'Trade ownership changed' }); return;
+        }
+
+        if (offer.offeredCash > 0) {
+          await prisma.player.update({ where: { id: offer.fromPlayerId }, data: { money: { decrement: offer.offeredCash } } });
+          await prisma.player.update({ where: { id: offer.toPlayerId }, data: { money: { increment: offer.offeredCash } } });
+        }
+        if (offer.requestedCash > 0) {
+          await prisma.player.update({ where: { id: offer.toPlayerId }, data: { money: { decrement: offer.requestedCash } } });
+          await prisma.player.update({ where: { id: offer.fromPlayerId }, data: { money: { increment: offer.requestedCash } } });
+        }
+
+        if (offer.offeredTileIndexes.length > 0) {
+          await prisma.property.updateMany({
+            where: { roomId: offer.roomId, tileIndex: { in: offer.offeredTileIndexes }, ownerId: offer.fromPlayerId },
+            data: { ownerId: offer.toPlayerId },
+          });
+        }
+        if (offer.requestedTileIndexes.length > 0) {
+          await prisma.property.updateMany({
+            where: { roomId: offer.roomId, tileIndex: { in: offer.requestedTileIndexes }, ownerId: offer.toPlayerId },
+            data: { ownerId: offer.fromPlayerId },
+          });
+        }
+
+        pendingTrades.delete(offer.id);
+        const state = await getFullGameState(offer.roomId);
+        io.to(offer.roomId).emit('trade_completed', offer);
+        io.to(offer.roomId).emit('chat_message', {
+          sender: 'System',
+          message: `Trade completed between ${offer.fromName} and ${offer.toName}`,
+          timestamp: new Date().toISOString(),
+          isSystem: true,
+        });
+        io.to(offer.roomId).emit('game_state_update', state);
+        callback({ success: true });
+      } catch (err) {
+        callback({ success: false, error: err instanceof Error ? err.message : 'Unknown error' });
+      }
+    });
+
+    socket.on('file_bankruptcy', async (data: { roomId: string }, callback) => {
+      try {
+        const sd = socket.data;
+        const player = await prisma.player.findFirst({
+          where: { roomId: data.roomId, userId: sd.userId as string },
+        });
+        if (!player) { callback({ success: false, error: 'Player not found' }); return; }
+
+        const result = await handleFileBankruptcy(data.roomId, player.id);
+        const state = await getFullGameState(data.roomId);
+        if (result.gameEnded && result.winner) {
+          io.to(data.roomId).emit('game_ended', { winner: result.winner });
+        }
         io.to(data.roomId).emit('game_state_update', state);
         callback({ success: true, ...result });
       } catch (err) {
