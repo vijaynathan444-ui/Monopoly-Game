@@ -50,7 +50,7 @@ export async function handleRollDice(roomId: string, playerId: string): Promise<
   tileAction: string;
   tile: MapTile;
   actions: GameAction[];
-  isDoubles?: boolean;
+  isDoubles: boolean;
 }> {
   const room = await prisma.room.findUnique({ where: { id: roomId } });
   if (!room) throw new Error('Room not found');
@@ -98,7 +98,7 @@ export async function handleRollDice(roomId: string, playerId: string): Promise<
       });
 
       const tile = map.tiles[newPosition];
-      return { dice, newPosition, passedGo, tileAction: 'escaped_jail', tile, actions };
+      return { dice, newPosition, passedGo, tileAction: 'escaped_jail', tile, actions, isDoubles: dice.isDouble };
     } else {
       const newJailTurns = player.jailTurns + 1;
       if (newJailTurns >= 3) {
@@ -117,7 +117,7 @@ export async function handleRollDice(roomId: string, playerId: string): Promise<
           data: { diceValues: JSON.stringify([dice.dice1, dice.dice2]), phase: 'action', doublesCount: 0 },
         });
         const tile = map.tiles[newPosition];
-        return { dice, newPosition, passedGo: false, tileAction: 'forced_jail_exit', tile, actions };
+        return { dice, newPosition, passedGo: false, tileAction: 'forced_jail_exit', tile, actions, isDoubles: dice.isDouble };
       } else {
         await prisma.player.update({
           where: { id: playerId },
@@ -128,7 +128,7 @@ export async function handleRollDice(roomId: string, playerId: string): Promise<
           data: { diceValues: JSON.stringify([dice.dice1, dice.dice2]), phase: 'ended_turn', doublesCount: 0 },
         });
         const tile = map.tiles[player.position];
-        return { dice, newPosition: player.position, passedGo: false, tileAction: 'still_in_jail', tile, actions };
+        return { dice, newPosition: player.position, passedGo: false, tileAction: 'still_in_jail', tile, actions, isDoubles: dice.isDouble };
       }
     }
   }
@@ -154,7 +154,7 @@ export async function handleRollDice(roomId: string, playerId: string): Promise<
       },
     });
     const tile = map.tiles[jailIndex >= 0 ? jailIndex : 10];
-    return { dice, newPosition: jailIndex >= 0 ? jailIndex : 10, passedGo: false, tileAction: 'go_to_jail', tile, actions };
+    return { dice, newPosition: jailIndex >= 0 ? jailIndex : 10, passedGo: false, tileAction: 'go_to_jail', tile, actions, isDoubles: dice.isDouble };
   }
 
   const newPosition = (player.position + dice.total) % boardSize;
@@ -192,7 +192,7 @@ export async function handleRollDice(roomId: string, playerId: string): Promise<
           doublesCount: 0,
         },
       });
-      return { dice, newPosition: jailIndex >= 0 ? jailIndex : 10, passedGo, tileAction, tile, actions };
+      return { dice, newPosition: jailIndex >= 0 ? jailIndex : 10, passedGo, tileAction, tile, actions, isDoubles: dice.isDouble };
     }
     case 'TAX': {
       const amount = tile.amount || 200;
