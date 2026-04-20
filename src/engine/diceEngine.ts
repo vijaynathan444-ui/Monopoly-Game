@@ -8,9 +8,8 @@ export interface DiceResult {
 }
 
 export function rollDice(): DiceResult {
-  const bytes = crypto.randomBytes(2);
-  const dice1 = (bytes[0] % 6) + 1;
-  const dice2 = (bytes[1] % 6) + 1;
+  const dice1 = crypto.randomInt(1, 7);
+  const dice2 = crypto.randomInt(1, 7);
   return {
     dice1,
     dice2,
