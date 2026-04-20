@@ -418,7 +418,7 @@ export async function handleDrawCard(roomId: string, playerId: string, cardType:
   const player = await prisma.player.findUnique({ where: { id: playerId } });
   if (!player) throw new Error('Player not found');
 
-  let resultData: Record<string, unknown> = { card };
+  const resultData: Record<string, unknown> = { card };
 
   switch (card.action) {
     case 'gain_money':
